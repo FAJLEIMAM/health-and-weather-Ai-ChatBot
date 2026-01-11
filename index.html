@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dynamic Health & Weather AI Chat (Final Fix)</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+    :root {
+      --primary: #45a2f8;
+      --primary2: #8be6d2;
+      --secondary: #d968ee;
+      --sidebar-bg: linear-gradient(135deg, #57e8c2 0%, #75b7fa 100%);
+      --main-bg: linear-gradient(120deg, #fff766 0%, #eb84ee 100%);
+      --bubble-user: linear-gradient(135deg, #00dbde, #fc00ff 99%);
+      --bubble-bot: linear-gradient(135deg, #ffecd2 0%, #fcb69f 99%);
+      --bubble-user-border: #1c2559;
+      --bubble-bot-border: #ef476f;
+      --logo-gradient: linear-gradient(60deg,#45a2f8,#fbbf24 80%, #d968ee);
+      --feature-bg1: linear-gradient(120deg, #7cffcb 10%, #02aab0 90%);
+      --feature-bg2: linear-gradient(120deg, #6a82fb 0, #fc5c7d 100%);
+      --feature-bg3: linear-gradient(120deg, #f7971e 10%, #ffd200 90%);
+      --feature-bg4: linear-gradient(120deg, #92fe9d 0%, #00c9ff 100%);
+      --text-dark: #22263a;
+      --text-light: #326698;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0; padding: 0;
+      background: linear-gradient(120deg, #ffcc33 0%, #ff66cc 50%, #33ccff 100%);
+      background-size: 300% 300%;
+      animation: bgShift 22s ease infinite;
+      color: var(--text-dark);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    @keyframes bgShift {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
+    }
+.app-container {
+  display: flex;
+  min-height: 100vh;
+  -webkit-backdrop-filter: blur(8px); /* Fix: Add webkit prefix for Chrome/Safari! */
+  backdrop-filter: blur(8px);
+  background-color: rgba(255,255,255,0.7);
+  border-radius: 16px;
+  box-shadow: 0 0 40px rgba(0,0,0,0.2);
+  margin: 16px auto;
+  max-width: 1200px;
+  overflow: hidden;
+}
+
+    .sidebar {
+      width: 285px; background: var(--sidebar-bg); padding: 38px 16px 16px 16px; display: flex; flex-direction: column;
+      box-shadow: 2px 0 28px #0003; border-radius:16px 0 0 16px;
+    }
+    .logo {
+      height: 54px; width: 54px; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; margin-bottom: 13px;
+      box-shadow: 0 4px 22px #fcbf2413;
+      background: var(--logo-gradient);
+      animation: logoPop 1s;
+    }
+    @keyframes logoPop {
+      0% {transform: scale(0.1);} 85% {transform: scale(1.1);} 100% {transform: scale(1);}
+    }
+    .sidebar-title {
+      font-weight: 700; font-size: 1.25em; margin-bottom: 4px;
+      color: #fff;
+    }
+    .sidebar-desc {
+      color: #eafcfa; font-size: 14px; margin-bottom: 22px;
+    }
+    .sidebar-nav {
+      margin-bottom: 38px;
+    }
+    .sidebar-nav div, .sidebar-nav button {
+      display: flex; align-items: center; width: 100%; padding: 13px 12px; margin-bottom: 9px;
+      border-radius: 12px; font-size: 1.11em; gap: 13px;
+      background: rgba(255,255,255,0.14); transition: 0.21s; cursor: pointer;
+      font-weight: 600; color: #fff; border: 0; letter-spacing: 0.012em;
+      box-shadow: 0 2px 10px #14ffec22;
+    }
+    .sidebar-nav div:hover, .sidebar-nav button:hover {
+      background: rgba(18,18,48,0.14); color: #36e6ff;
+    }
+    .sidebar-nav .active {
+      background: rgba(255,255,255,0.22); color: #ffbedd;
+    }
+    .connected {
+      background: #22c55e26; color: #fff; font-weight: 700;
+      padding: 3px 19px 5px 13px; border-radius: 13px; font-size: 0.97em;
+      margin-bottom: 15px; border: 1px solid #22c55e; box-shadow: 0 0 6px #fff4;
+    }
+    .main-content {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-start; padding: 32px 40px; position: relative; box-sizing: border-box;
+      min-height: 95vh;
+    }
+    .main-header {
+      font-size: 2em; font-weight: 700; margin: 0 0 13px 0;
+      color: var(--text-dark); text-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    .main-powerby {
+      color: #ba46fa; font-size: 1.06em; margin: 0 0 24px 0;
+      text-shadow: 0 0 10px rgba(186,70,250,0.4);
+    }
+    .features {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(248px, 1fr));
+      gap: 34px; width: 100%; max-width: 900px; margin-bottom: 17px;
+    }
+    .feature-card {
+      position: relative; color: #21243d; background: var(--feature-bg1);
+      padding: 24px 18px 20px 18px; border-radius: 18px;
+      box-shadow: 0 7px 28px #18f7af64;
+      display: flex; flex-direction: column; align-items: center; gap: 13px; cursor: pointer;
+      transition: box-shadow 0.29s, transform 0.26s;
+      opacity: 0; transform: scale(0.94) translateY(23px);
+      animation: featureUp 0.67s cubic-bezier(0.28, 0.88, 0.41, 0.95) forwards;
+    }
+    .feature-card.card2 { background: var(--feature-bg2); color: #fafaff;}
+    .feature-card.card3 { background: var(--feature-bg3); color: #313748;}
+    .feature-card.card4 { background: var(--feature-bg4); color: #0e233c;}
+    .feature-card:nth-child(1) { animation-delay: 0.33s;}
+    .feature-card:nth-child(2) { animation-delay: 0.54s;}
+    .feature-card:nth-child(3) { animation-delay: 0.75s;}
+    .feature-card:nth-child(4) { animation-delay: 0.95s;}
+    @keyframes featureUp {
+      to { opacity: 1; transform: none;}
+    }
+    .feature-icon { font-size: 2.1em; margin-bottom: 7px; text-shadow: 0 3px 12px #fff9;}
+    .feature-title { font-weight: 700; font-size: 1.22em; letter-spacing: 0.03em; margin-bottom: 4px;}
+    .feature-desc { font-size: 1.08em; text-align: center;}
+    .cloud-anim {
+      position: absolute; top: -26px; right: -18px; z-index: 2; height: 48px; width: 78px; opacity: 0.54;
+      animation: floatcloud 7s infinite alternate cubic-bezier(0.55, 0.87, 0.46, 0.91);
+    }
+    @keyframes floatcloud {
+      0% {transform: translateY(3px) scale(0.96);}
+      100% {transform: translateY(-30px) scale(1.08);}
+    }
+    .chatbox-area {
+      width: 100%; max-width: 650px; margin: 30px auto 0 auto;
+      display: flex; flex-direction: column; align-items: stretch;
+      position: relative; z-index: 99; min-height: 235px;
+    }
+    .messages {
+      flex: 1;
+      min-height: 170px;
+      max-height: 235px;
+      overflow-y: auto;
+      margin-bottom: 14px;
+      width: 100%;
+      padding-right: 4px;
+    }
+    .msg {
+      display: inline-block; max-width: 81%; margin: 11px 0 0 0; padding: 14px 19px; border-radius: 25px 21px 23px 7px;
+      box-shadow: 0 6px 24px 0 rgba(33, 132, 233, 0.08);
+      font-size: 1.13em; font-weight: 500; line-height: 1.53;
+      background: var(--bubble-user); color: #fff;
+      border: 2.5px solid var(--bubble-user-border); opacity: 0;
+      transform: translateX(29px) scale(0.95);
+      animation: msgInUser 0.48s cubic-bezier(0.16, 0.68, 0.43, 1.01) forwards;
+      background-blend-mode: screen;
+      text-shadow: 0 2px 16px #0008;
+      word-break: break-word;
+    }
+    .msg.bot {
+      background: var(--bubble-bot); color: #ad0e38;
+      border: 2.5px solid var(--bubble-bot-border);
+      align-self: flex-start;
+      border-radius: 23px 24px 8px 19px;
+      animation: msgInBot 0.68s cubic-bezier(0.27, 0.84, 0.33, 1.03) forwards;
+      background-blend-mode: screen;
+    }
+    @keyframes msgInUser {
+      100% {opacity: 1; transform: none;}
+    }
+    @keyframes msgInBot {
+      from {opacity: 0; transform: translateX(-38px);}
+      80% {transform: translateX(13px) scale(1.06); opacity: 1;}
+      100% {opacity: 1; transform: none;}
+    }
+    .input-area {
+      background: #fff;
+      border-radius: 39px;
+      padding: 14px 21px;
+      box-shadow: 0 3px 18px #bdbdbd44;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      width: 100%;
+      max-width: 650px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .input-area input[type="text"] {
+      flex: 1;
+      padding: 14px 20px;
+      border: 1.5px solid #dbeafe;
+      border-radius: 30px;
+      font-size: 1.13em;
+      outline: none;
+      background: #fff !important;
+      color: #111 !important;
+      font-weight: 500;
+      box-shadow: 0 2px 8px #0001;
+      transition: border 0.2s;
+      z-index: 4;
+      position: relative;
+    }
+    .input-area input[type="text"]:focus {
+      border: 1.5px solid #45a2f8;
+      box-shadow: 0 2px 14px #3b82f630;
+    }
+    .anim-btn {
+      transition: 0.2s;
+      box-shadow: 0 2px 9px #c0fafb52;
+    }
+    .input-area button {
+      border: 0;
+      background: var(--secondary, #d968ee);
+      color: #fff;
+      border-radius: 50%;
+      width: 46px;
+      height: 46px;
+      font-size: 1.5em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-right: 3px;
+    }
+    .input-area button:hover {
+      background: var(--primary, #45a2f8);
+    }
+    .input-area .mic-btn {
+      background: var(--primary, #45a2f8);
+    }
+    .input-area .mic-btn:hover {
+      background: var(--secondary, #d968ee);
+    }
+    @media (max-width: 900px) {
+      .features { max-width: 98vw; }
+      .chatbox-area{ width:100vw; }
+      .input-area{ max-width: 98vw; }
+      .messages{max-width:95vw;}
+    }
+    @media (max-width: 640px) {
+      .sidebar { display: none; }
+      .main-content { padding: 8px;}
+      .chatbox-area, .input-area {max-width: 100vw;}
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="logo">
+        <svg width="34" height="34" fill="none" viewBox="0 0 32 32">
+          <circle cx="19" cy="12" r="10" fill="url(#g1)" />
+          <defs>
+            <radialGradient id="g1" cx="50%" cy="50%" r="70%">
+              <stop stop-color="#45a2f8" />
+              <stop offset="1" stop-color="#d968ee" />
+            </radialGradient>
+          </defs>
+          <rect x="4" y="17" width="16" height="8" rx="4" fill="#fbbf24" />
+        </svg>
+      </div>
+      <div class="sidebar-title">Health AI Chat</div>
+      <div class="sidebar-desc">Environment & Health Assistant</div>
+      <div class="sidebar-nav">
+        <button>➕ New Chat</button>
+        <div class="active">💬 Current Chat</div>
+        <div>🌱 Environmental Data</div>
+        <div>❤️ Health Queries</div>
+      </div>
+      <div class="connected">● Connected</div>
+    </aside>
+    <main class="main-content">
+      <div class="main-header">Health & Environment AI Assistant</div>
+      <div class="main-powerby">Powered by NASA API, WHO Data & Advanced AI</div>
+      <div class="features">
+        <div class="feature-card">
+          <svg class="cloud-anim" viewBox="0 0 78 49">
+            <ellipse cx="32" cy="41" rx="23" ry="8" fill="#fff" />
+            <ellipse cx="46" cy="33.5" rx="17" ry="14" fill="#e0f7ff" />
+            <ellipse cx="58" cy="39" rx="9" ry="7" fill="#fff" />
+            <ellipse cx="23.5" cy="29" rx="11.5" ry="10" fill="#e0f7ff" />
+            <ellipse cx="42.5" cy="34" rx="14.5" ry="10" fill="#fff" />
+          </svg>
+          <span class="feature-icon">☁️</span>
+          <span class="feature-title">Air Quality</span>
+          <span class="feature-desc">Get real-time air quality data and health recommendations</span>
+        </div>
+        <div class="feature-card card2">
+          <span class="feature-icon">🌦️</span>
+          <span class="feature-title">Climate Data</span>
+          <span class="feature-desc">Access satellite data on climate patterns</span>
+        </div>
+        <div class="feature-card card3">
+          <span class="feature-icon">💪</span>
+          <span class="feature-title">Health Guidelines</span>
+          <span class="feature-desc">Get WHO recommendations for healthy living</span>
+        </div>
+        <div class="feature-card card4">
+          <span class="feature-icon">🌎</span>
+          <span class="feature-title">Environment & Health</span>
+          <span class="feature-desc">Learn about environment health connections</span>
+        </div>
+      </div>
+      <div class="chatbox-area">
+        <div class="messages" id="chatbox"></div>
+        <div class="input-area">
+          <input type="text" id="msgInput" placeholder="Type your question here..." autocomplete="off" />
+          <button id="voiceBtn" class="anim-btn mic-btn" title="Voice Input">🎤</button>
+          <button id="sendBtn" class="anim-btn" title="Send Message">➤</button>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script>
+    const socket = io();
+    const root = document.documentElement;
+    const healthTexts = {
+      header: "Your Personal Health Assistant",
+      powerby: "WHO, Wellness APIs & Smart Health AI",
+      features: [
+        { icon: "💗", title: "Doctor Advice", desc: "Get instant doctor-level recommendations" },
+        { icon: "🥗", title: "Nutrition", desc: "Ask about healthy food & diets" },
+        { icon: "🏃", title: "Fitness Routine", desc: "Personalized workout & wellness tips" },
+        { icon: "🧠", title: "Mental Health", desc: "Guidance for better mental wellbeing" }
+      ]
+    };
+    const weatherTexts = {
+      header: "Live Weather & Climate Chatbot",
+      powerby: "NASA, OpenWeather & Real-time Data AI",
+      features: [
+        { icon: "☁️", title: "Air Quality", desc: "Check pollution & AQI for your area" },
+        { icon: "🌦️", title: "Current Weather", desc: "Live temperature, rain, wind, and more" },
+        { icon: "🌡️", title: "Climate Trends", desc: "Track climate patterns worldwide" },
+        { icon: "🌈", title: "Forecast", desc: "Get accurate forecasts for any city" }
+      ]
+    };
+    function setTheme(theme) {
+      if (theme === "health") {
+        root.style.setProperty('--main-bg', 'linear-gradient(120deg,#f2ffe4 0%,#77eaa1 100%)');
+        root.style.setProperty('--sidebar-bg', 'linear-gradient(120deg,#92fe9d 0%,#00c9ff 100%)');
+        root.style.setProperty('--feature-bg1', 'linear-gradient(120deg,#fbda61 0%,#ff5acd 100%)');
+        root.style.setProperty('--feature-bg2', 'linear-gradient(120deg,#f7971e 0%,#ffd200 100%)');
+        root.style.setProperty('--feature-bg3', 'linear-gradient(120deg,#fcb69f 0%,#ffecd2 100%)');
+        root.style.setProperty('--feature-bg4', 'linear-gradient(120deg,#8fd3f4 0%,#84fab0 100%)');
+        updateContentTexts(healthTexts);
+      } else if (theme === "weather") {
+        root.style.setProperty('--main-bg', 'linear-gradient(120deg,#89f7fe 0%,#66a6ff 100%)');
+        root.style.setProperty('--sidebar-bg', 'linear-gradient(120deg,#3f51b1 0%,#5a6ded 100%)');
+        root.style.setProperty('--feature-bg1', 'linear-gradient(120deg,#53cde2 0%,#1798fb 100%)');
+        root.style.setProperty('--feature-bg2', 'linear-gradient(120deg,#feb692 0%,#ea5455 100%)');
+        root.style.setProperty('--feature-bg3', 'linear-gradient(120deg,#ffd200 0%,#f7971e 100%)');
+        root.style.setProperty('--feature-bg4', 'linear-gradient(120deg,#00c9ff 0%,#92fe9d 100%)');
+        updateContentTexts(weatherTexts);
+      }
+    }
+    function updateContentTexts(themeObj) {
+      document.querySelector('.main-header').innerText = themeObj.header;
+      document.querySelector('.main-powerby').innerText = themeObj.powerby;
+      document.querySelectorAll('.feature-card').forEach((card, i) => {
+        if (themeObj.features[i]) {
+          card.querySelector('.feature-icon').innerText = themeObj.features[i].icon;
+          card.querySelector('.feature-title').innerText = themeObj.features[i].title;
+          card.querySelector('.feature-desc').innerText = themeObj.features[i].desc;
+        }
+      });
+    }
+    const chatbox = document.getElementById('chatbox');
+    const msgInput = document.getElementById('msgInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const voiceBtn = document.getElementById('voiceBtn');
+    function addMessage(text, sender = 'user') {
+      const div = document.createElement('div');
+      div.classList.add('msg');
+      if (sender === 'bot') div.classList.add('bot');
+      chatbox.appendChild(div);
+      setTimeout(() => {
+        div.style.opacity = "1";
+      }, 80);
+      div.innerText = text;
+      chatbox.scrollTop = chatbox.scrollHeight;
+      // Voice output for any bot reply
+      if (sender === 'bot' && "speechSynthesis" in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.03;
+        utterance.pitch = 1.0;
+        utterance.volume = 0.95;
+        speechSynthesis.speak(utterance);
+      }
+    }
+    sendBtn.onclick = () => {
+      const msg = msgInput.value.trim();
+      if (msg) {
+        if (/health|doctor|medicine|clinic|hospital|fitness|wellness|fit|mental|nutrition/.test(msg.toLowerCase())) {
+          setTheme("health");
+        } else if (/weather|rain|sun|climate|air|temperature|humidity|environment|aqi|pollution|forecast/.test(msg.toLowerCase())) {
+          setTheme("weather");
+        }
+        addMessage(msg, 'user');
+        msgInput.value = '';
+        socket.emit('chat message', msg);
+      }
+    };
+    msgInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendBtn.click();
+    });
+    voiceBtn.onclick = () => {
+      if (!('webkitSpeechRecognition' in window)) {
+        alert('Speech Recognition not supported');
+        return;
+      }
+      const recognition = new webkitSpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.start();
+      voiceBtn.disabled = true;
+      voiceBtn.textContent = "🎙️ Listening...";
+      recognition.onresult = (event) => {
+        msgInput.value = event.results[0][0].transcript;
+        sendBtn.click();
+      };
+      recognition.onend = () => {
+        voiceBtn.disabled = false;
+        voiceBtn.textContent = "🎤";
+      }
+    };
+    // Receive backend reply
+    socket.on('chat message', function(msg) {
+      if (/health|doctor|medicine|clinic|hospital|fitness|wellness|fit|mental|nutrition/.test(msg.toLowerCase())) {
+        setTheme("health");
+      } else if (/weather|rain|sun|climate|air|temperature|humidity|environment|aqi|pollution|forecast/.test(msg.toLowerCase())) {
+        setTheme("weather");
+      }
+      addMessage(msg, 'bot');
+    });
+    // Initial theme
+    setTheme("weather");
+  </script>
+</body>
+</html>
